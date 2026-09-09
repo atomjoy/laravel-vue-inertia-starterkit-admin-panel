@@ -45,12 +45,6 @@ const description = 'Manage user accounts, email verification, and 2FA security.
 const rolesList = ref(props.roles)
 const rows = computed(() => props.payload.data)
 
-// Przechowuje ID aktualnie zaznaczonych wierszy
-const selectedIds = ref<number[]>([])
-
-// Sprawdza, czy wszyscy użytkownicy z obecnej strony są zaznaczeni
-const isAllSelected = computed(() => checkIfAllSelected(rows.value, selectedIds.value))
-
 // Table columns
 const columns = computed<TableColumn[]>(() =>
 	getUserColumns({
@@ -67,22 +61,33 @@ const tableState = ref({
 	per_page: props.payload.per_page || 10,
 	sort_by: props.filters?.sort_by || 'id',
 	sort_dir: props.filters?.sort_dir || 'asc',
-	search: props.filters?.search || '',
 	...props.filters,
 } as Record<string, any>)
 
-// Rozwiązuje problem z typowaniem/rozpakowywaniem refów w template
-const sortByColumn = (col: TableColumn) => {
-	handleSort(col, tableState)
-}
+// Przechowuje ID aktualnie zaznaczonych wierszy
+const selectedIds = ref<number[]>([])
 
-// Wywołanie akcji masowego usuwania
+// Sprawdza, czy wszyscy użytkownicy z obecnej strony są zaznaczeni
+const isAllSelected = computed(() => checkIfAllSelected(rows.value, selectedIds.value))
+
+// Unika wycina ref @click=""
 const triggerDelete = () => {
 	handleBulkDelete(routeUrl, selectedIds)
 }
 
-// Watcher synchronizujący stan tabeli z URL za pomocą Inertia
+// Watch
 useTableWatcher(tableState, routeUrl, updateTableData)
+
+// Bezpieczna synchronizacja zwrotna z serwera
+// router.on('success', (event) => {
+// 	const newFilters = event.detail.page.props.filters as any
+// 	if (newFilters) {
+// 		// Blokujemy reaktywność watchera na chwilę przepisując dane
+// 		tableState.value.sort_by = newFilters.sort_by || 'id'
+// 		tableState.value.sort_dir = newFilters.sort_dir || 'asc'
+// 		// filters
+// 	}
+// })
 </script>
 
 <template>
@@ -97,7 +102,7 @@ useTableWatcher(tableState, routeUrl, updateTableData)
 						type="text"
 						v-model="tableState.search"
 						placeholder="Szukaj użytkownika..."
-						class="border-input m-1 block w-full rounded-md border p-2 px-4 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						class="border-input m-1 block w-full rounded-md border p-2 px-4"
 					/>
 				</div>
 			</div>
@@ -112,6 +117,7 @@ useTableWatcher(tableState, routeUrl, updateTableData)
 				</span>
 
 				<div class="flex items-center space-x-3">
+					<!-- Przycisk masowego usuwania / akcji -->
 					<button
 						@click="triggerDelete"
 						class="inline-flex items-center rounded-md border border-transparent bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition-colors duration-150 hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none"
@@ -121,29 +127,27 @@ useTableWatcher(tableState, routeUrl, updateTableData)
 				</div>
 			</div>
 
-			<!-- Tabela danych -->
 			<table class="min-w-full divide-y divide-gray-300">
 				<thead class="bg-gray-50">
 					<tr>
 						<th
 							v-for="col in columns"
 							:key="col.key"
-							@click="sortByColumn(col)"
+							@click="col.sortable ? handleSort(col, toRef(tableState)) : null"
 							:class="[
 								col.sortable ? 'cursor-pointer select-none hover:bg-gray-100' : '',
 								'px-3 py-3.5 text-left text-sm font-semibold text-gray-900 transition-colors duration-150',
 							]"
 						>
 							<div class="flex items-center space-x-1">
-								<!-- Bezpieczne renderowanie checkboxa nagłówka (Select All) -->
+								<!-- Jeśli kolumna ma funkcję render (np. nasz checkbox nagłówka), używamy jej -->
 								<template v-if="col.key === 'id' && col.render">
-									<component :is="col.render(null, {} as User)" />
+									<component :is="col.render(undefined, {} as User)" />
 								</template>
 								<template v-else>
 									<span>{{ col.label }}</span>
 								</template>
 
-								<!-- Ikony sortowania -->
 								<span v-if="col.sortable" class="text-xs text-gray-400">
 									<template v-if="tableState.sort_by === col.key">
 										{{ tableState.sort_dir === 'asc' ? '▲' : '▼' }}
@@ -157,27 +161,20 @@ useTableWatcher(tableState, routeUrl, updateTableData)
 					</tr>
 				</thead>
 				<tbody class="relative divide-y divide-gray-200 bg-white">
-					<!-- Stan ładowania danych -->
-					<tr v-if="loading">
-						<td
-							:colspan="columns.length"
-							class="px-3 py-8 text-center text-sm text-gray-500"
-						>
-							Ładowanie danych...
-						</td>
-					</tr>
-
-					<!-- Brak wyników -->
-					<tr v-else-if="rows.length === 0">
-						<td
-							:colspan="columns.length"
-							class="px-3 py-8 text-center text-sm text-gray-500"
-						>
-							Brak danych do wyświetlenia.
-						</td>
-					</tr>
-
-					<!-- Pętla po wierszach danych -->
+					<template v-if="loading">
+						Loading...
+						<!-- <TableSkeletonRow v-for="n in 5" :key="n" :columns-count="columns.length" /> -->
+					</template>
+					<template v-else-if="rows.length === 0">
+						<tr>
+							<td
+								:colspan="columns.length"
+								class="px-3 py-8 text-center text-sm text-gray-500"
+							>
+								Brak danych do wyświetlenia.
+							</td>
+						</tr>
+					</template>
 					<template v-else>
 						<tr
 							v-for="(row, rowIndex) in rows"
@@ -189,7 +186,6 @@ useTableWatcher(tableState, routeUrl, updateTableData)
 								:key="col.key"
 								class="px-3 py-4 text-sm whitespace-nowrap text-gray-500"
 							>
-								<!-- Renderowanie dedykowanego komponentu (np. checkbox wiersza, status) lub tekstu -->
 								<template v-if="col.render">
 									<component :is="col.render(getCellValue(row, col.key), row)" />
 								</template>
@@ -202,9 +198,7 @@ useTableWatcher(tableState, routeUrl, updateTableData)
 				</tbody>
 			</table>
 		</div>
-
-		<!-- Sekcja paginacji -->
-		<div class="pagination mt-4">
+		<div class="pagination">
 			<Pagination :links="payload.links" :total="payload.total" />
 		</div>
 	</AdminLayout>
