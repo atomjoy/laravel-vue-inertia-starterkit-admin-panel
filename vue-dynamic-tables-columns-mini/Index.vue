@@ -71,12 +71,7 @@ const tableState = ref({
 	...props.filters,
 } as Record<string, any>)
 
-// Rozwiązuje problem z typowaniem/rozpakowywaniem refów w template
-const sortByColumn = (col: TableColumn) => {
-	handleSort(col, tableState)
-}
-
-// Wywołanie akcji masowego usuwania
+// Funkcja pośrednicząca, która rozwiązuje problem z typowaniem/rozpakowywaniem refów w template
 const triggerDelete = () => {
 	handleBulkDelete(routeUrl, selectedIds)
 }
@@ -128,7 +123,7 @@ useTableWatcher(tableState, routeUrl, updateTableData)
 						<th
 							v-for="col in columns"
 							:key="col.key"
-							@click="sortByColumn(col)"
+							@click="col.sortable ? handleSort(col, toRef(tableState)) : null"
 							:class="[
 								col.sortable ? 'cursor-pointer select-none hover:bg-gray-100' : '',
 								'px-3 py-3.5 text-left text-sm font-semibold text-gray-900 transition-colors duration-150',
