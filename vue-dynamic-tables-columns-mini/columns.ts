@@ -13,11 +13,11 @@ export const getUserColumns = (options: ColumnOptions): TableColumn[] => [
 				type: 'checkbox',
 				checked:
 					id === undefined
-						? options.isAllSelected
+						? options.isAllSelected.value
 						: options.selectedIds.value.includes(row.id),
 				onChange: () => {
 					if (id === undefined) {
-						toggleAll(options.isAllSelected, options.selectedIds, options.rows)
+						toggleAll(options.isAllSelected.value, options.selectedIds, options.rows)
 					} else {
 						toggleRow(row.id, options.selectedIds)
 					}

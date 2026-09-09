@@ -56,7 +56,7 @@ const columns = computed<TableColumn[]>(() =>
 	getUserColumns({
 		basePath: routeUrl,
 		selectedIds: selectedIds,
-		isAllSelected: isAllSelected.value,
+		isAllSelected: isAllSelected,
 		rows: rows,
 	}),
 )
@@ -74,6 +74,10 @@ const tableState = ref({
 // Funkcja pośrednicząca, która rozwiązuje problem z typowaniem/rozpakowywaniem refów w template
 const triggerDelete = () => {
 	handleBulkDelete(routeUrl, selectedIds)
+}
+
+const triggerSelect = (col: any) => {
+	col.sortable ? handleSort(col, tableState) : null
 }
 
 // Watcher synchronizujący stan tabeli z URL za pomocą Inertia
@@ -123,7 +127,7 @@ useTableWatcher(tableState, routeUrl, updateTableData)
 						<th
 							v-for="col in columns"
 							:key="col.key"
-							@click="col.sortable ? handleSort(col, toRef(tableState)) : null"
+							@click="triggerSelect(col)"
 							:class="[
 								col.sortable ? 'cursor-pointer select-none hover:bg-gray-100' : '',
 								'px-3 py-3.5 text-left text-sm font-semibold text-gray-900 transition-colors duration-150',
@@ -132,7 +136,7 @@ useTableWatcher(tableState, routeUrl, updateTableData)
 							<div class="flex items-center space-x-1">
 								<!-- Bezpieczne renderowanie checkboxa nagłówka (Select All) -->
 								<template v-if="col.key === 'id' && col.render">
-									<component :is="col.render(null, {} as User)" />
+									<component :is="col.render(undefined, {} as User)" />
 								</template>
 								<template v-else>
 									<span>{{ col.label }}</span>

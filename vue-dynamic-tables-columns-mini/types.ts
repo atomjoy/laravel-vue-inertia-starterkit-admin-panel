@@ -76,7 +76,7 @@ export interface TableFilters {
 export interface ColumnOptions {
 	basePath: string
 	selectedIds: Ref<Array<number>>
-	isAllSelected: boolean
+	isAllSelected: Ref<boolean>
 	rows: Ref<any>
 }
 

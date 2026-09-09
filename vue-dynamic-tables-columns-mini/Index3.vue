@@ -50,7 +50,7 @@ const columns = computed<TableColumn[]>(() =>
 	getUserColumns({
 		basePath: routeUrl,
 		selectedIds: selectedIds,
-		isAllSelected: isAllSelected.value,
+		isAllSelected: isAllSelected,
 		rows: rows,
 	}),
 )
